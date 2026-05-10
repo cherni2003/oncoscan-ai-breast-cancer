@@ -1,222 +1,202 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Send, Mic, MicOff, Volume2, VolumeX, Sparkles } from 'lucide-react';
+import { Send, Mic, MicOff, Volume2, VolumeX } from 'lucide-react';
 
-// ── Text-to-Speech helper ─────────────────────────────────────────────────────
+/* ── TTS helper ── */
 const ttsSpeak = (text, onStart, onEnd) => {
   if (!window.speechSynthesis) return;
   window.speechSynthesis.cancel();
-
-  const utterance = new SpeechSynthesisUtterance(text);
-  utterance.lang = 'fr-FR';
-  utterance.rate = 1.0;
-  utterance.pitch = 1.0;
-
-  // Choisir une voix française si disponible
+  const utt = new SpeechSynthesisUtterance(text);
+  utt.lang  = 'fr-FR'; utt.rate = 1.0; utt.pitch = 1.0;
   const voices = window.speechSynthesis.getVoices();
-  const frVoice = voices.find(v => v.lang.startsWith('fr'));
-  if (frVoice) utterance.voice = frVoice;
-
-  utterance.onstart = () => onStart?.();
-  utterance.onend   = () => onEnd?.();
-  utterance.onerror = () => onEnd?.();
-
-  window.speechSynthesis.speak(utterance);
+  const fr = voices.find(v => v.lang.startsWith('fr'));
+  if (fr) utt.voice = fr;
+  utt.onstart = () => onStart?.();
+  utt.onend   = () => onEnd?.();
+  utt.onerror = () => onEnd?.();
+  window.speechSynthesis.speak(utt);
 };
 
-// ── ChatInput ─────────────────────────────────────────────────────────────────
+const inputStyles = `
+  .ps-input-wrap {
+    border-top:1px solid rgba(255,255,255,.07);
+    background:rgba(10,5,8,.6);
+    padding:10px 12px 12px;
+    flex-shrink:0;
+  }
+  .ps-quick-actions {
+    display:flex; gap:6px; overflow-x:auto; padding-bottom:8px;
+    scrollbar-width:none;
+  }
+  .ps-quick-actions::-webkit-scrollbar { display:none; }
+  .ps-qa-btn {
+    display:inline-flex; align-items:center; gap:5px;
+    padding:5px 11px; border-radius:99px; border:none;
+    background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.08);
+    color:rgba(203,213,225,.7); font-size:11.5px; white-space:nowrap;
+    cursor:pointer; transition:all .15s; flex-shrink:0;
+  }
+  .ps-qa-btn:hover:not(:disabled) {
+    background:rgba(225,29,72,.1); border-color:rgba(225,29,72,.3); color:#fb7185;
+  }
+  .ps-qa-btn:disabled { opacity:.4; cursor:not-allowed; }
+
+  .ps-input-row { display:flex; align-items:center; gap:8px; }
+  .ps-icon-action {
+    background:none; border:none; cursor:pointer;
+    width:34px; height:34px; border-radius:10px; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center;
+    color:rgba(148,163,184,.5); transition:all .15s;
+  }
+  .ps-icon-action:hover { background:rgba(255,255,255,.06); color:#fb7185; }
+  .ps-icon-action.active { background:rgba(225,29,72,.12); color:#fb7185; }
+  .ps-icon-action.listening { background:rgba(225,29,72,.12); color:#f87171; animation:ps-pulse 1s infinite; }
+
+  .ps-text-input {
+    flex:1; background:rgba(255,255,255,.05);
+    border:1px solid rgba(255,255,255,.09);
+    border-radius:12px; padding:9px 14px;
+    font-size:13px; color:#e2e8f0; outline:none;
+    transition:all .2s; font-family:inherit;
+  }
+  .ps-text-input::placeholder { color:rgba(148,163,184,.4); }
+  .ps-text-input:focus { border-color:rgba(225,29,72,.35); background:rgba(255,255,255,.07); }
+  .ps-text-input.listening { border-color:rgba(225,29,72,.5); background:rgba(225,29,72,.05); }
+
+  .ps-send-btn {
+    width:36px; height:36px; border-radius:10px; border:none;
+    display:flex; align-items:center; justify-content:center;
+    cursor:pointer; transition:all .2s; flex-shrink:0;
+  }
+  .ps-send-btn.active {
+    background:linear-gradient(135deg,#7f1d3a,#e11d48);
+    box-shadow:0 4px 14px rgba(225,29,72,.3);
+  }
+  .ps-send-btn.active:hover { transform:scale(1.06); }
+  .ps-send-btn.inactive { background:rgba(255,255,255,.07); cursor:not-allowed; }
+
+  .ps-tts-indicator {
+    display:flex; align-items:center; gap:6px;
+    margin-top:7px; font-size:10.5px; color:rgba(251,113,133,.6);
+  }
+  .ps-tts-bar {
+    width:3px; border-radius:2px; background:#fb7185;
+    animation:ps-bounce 1.2s infinite;
+  }
+`;
+
+const quickActions = [
+  { emoji: '📊', label: 'Dashboard',   command: 'Afficher le tableau de bord' },
+  { emoji: '🔬', label: 'Histopathologie', command: 'Résultat histopathologie' },
+  { emoji: '📡', label: 'Mammographie', command: 'Résultat mammographie' },
+  { emoji: '⚠️', label: 'Risque',       command: 'Évaluation du risque' },
+  { emoji: '❓', label: 'Aide',         command: 'Aide' },
+];
+
 const ChatInput = ({ onSendMessage, isLoading, lastBotMessage }) => {
-  const [message,      setMessage]      = useState('');
-  const [isListening,  setIsListening]  = useState(false);
-  const [isSpeaking,   setIsSpeaking]   = useState(false);
-  const [ttsEnabled,   setTtsEnabled]   = useState(true);
+  const [message,     setMessage]     = useState('');
+  const [isListening, setIsListening] = useState(false);
+  const [isSpeaking,  setIsSpeaking]  = useState(false);
+  const [ttsEnabled,  setTtsEnabled]  = useState(true);
   const recognitionRef = useRef(null);
 
-  // ── Lire automatiquement le dernier message bot si TTS activé ────────────
+  /* Auto-TTS sur nouveau message bot */
   useEffect(() => {
     if (!ttsEnabled || !lastBotMessage) return;
     const text = typeof lastBotMessage === 'string' ? lastBotMessage : lastBotMessage?.text;
-    if (text) {
-      ttsSpeak(text, () => setIsSpeaking(true), () => setIsSpeaking(false));
-    }
+    if (text) ttsSpeak(text, () => setIsSpeaking(true), () => setIsSpeaking(false));
   }, [lastBotMessage]);
 
-  // ── Arrêter TTS quand on ferme ───────────────────────────────────────────
-  useEffect(() => {
-    return () => window.speechSynthesis?.cancel();
-  }, []);
+  useEffect(() => () => window.speechSynthesis?.cancel(), []);
 
-  // ── Speech-to-Text (Web Speech API) ─────────────────────────────────────
+  /* Speech-to-Text */
   const toggleListening = () => {
-    const SpeechRecognition =
-      window.SpeechRecognition || window.webkitSpeechRecognition;
-
-    if (!SpeechRecognition) {
-      alert("Votre navigateur ne supporte pas la reconnaissance vocale. Essayez Chrome.");
-      return;
-    }
-
-    if (isListening) {
-      recognitionRef.current?.stop();
-      setIsListening(false);
-      return;
-    }
-
-    const recognition = new SpeechRecognition();
-    recognition.lang            = 'fr-FR';
-    recognition.interimResults  = false;
-    recognition.maxAlternatives = 1;
-
-    recognition.onstart = () => setIsListening(true);
-    recognition.onend   = () => setIsListening(false);
-    recognition.onerror = () => setIsListening(false);
-
-    recognition.onresult = (event) => {
-      const transcript = event.results[0][0].transcript;
-      setMessage(transcript);
-    };
-
-    recognitionRef.current = recognition;
-    recognition.start();
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) { alert("Reconnaissance vocale non disponible. Essayez Chrome."); return; }
+    if (isListening) { recognitionRef.current?.stop(); setIsListening(false); return; }
+    const r = new SR();
+    r.lang = 'fr-FR'; r.interimResults = false; r.maxAlternatives = 1;
+    r.onstart  = () => setIsListening(true);
+    r.onend    = () => setIsListening(false);
+    r.onerror  = () => setIsListening(false);
+    r.onresult = e  => setMessage(e.results[0][0].transcript);
+    recognitionRef.current = r;
+    r.start();
   };
 
-  // ── Envoyer ──────────────────────────────────────────────────────────────
   const handleSend = () => {
-    if (message.trim() && !isLoading) {
-      window.speechSynthesis?.cancel();
-      setIsSpeaking(false);
-      onSendMessage(message);
-      setMessage('');
-    }
+    if (!message.trim() || isLoading) return;
+    window.speechSynthesis?.cancel(); setIsSpeaking(false);
+    onSendMessage(message); setMessage('');
   };
-
-  const handleKeyPress = (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSend();
-    }
-  };
-
-  const quickActions = [
-    { emoji: '📊', label: 'Tableau de bord', command: 'Afficher le tableau de bord' },
-    { emoji: '👤', label: 'Patient P001',     command: 'Infos patient P001' },
-    { emoji: '🔬', label: 'Scan P001',        command: 'Résultat scan P001' },
-    { emoji: '⚠️', label: 'Risque P001',      command: 'Calcule le risque P001' },
-  ];
 
   return (
-    <div className="border-t border-gray-200 bg-white p-4 rounded-b-2xl">
-      {/* Quick Actions */}
-      <div className="flex gap-2 mb-3 overflow-x-auto pb-2 scrollbar-thin">
-        {quickActions.map((action, idx) => (
+    <>
+      <style>{inputStyles}</style>
+      <div className="ps-input-wrap">
+
+        {/* Quick actions */}
+        <div className="ps-quick-actions">
+          {quickActions.map((a, i) => (
+            <button key={i} className="ps-qa-btn"
+              onClick={() => onSendMessage(a.command)} disabled={isLoading}>
+              <span>{a.emoji}</span> {a.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Input row */}
+        <div className="ps-input-row">
+          {/* TTS toggle */}
           <button
-            key={idx}
-            onClick={() => onSendMessage(action.command)}
-            disabled={isLoading}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-50 hover:bg-gray-100 rounded-full text-sm text-gray-700 whitespace-nowrap transition-all hover:scale-105"
+            className={`ps-icon-action ${ttsEnabled ? 'active' : ''}`}
+            onClick={() => { if (ttsEnabled) { window.speechSynthesis?.cancel(); setIsSpeaking(false); } setTtsEnabled(!ttsEnabled); }}
+            title={ttsEnabled ? 'Désactiver la voix' : 'Activer la voix'}
           >
-            <span className="text-base">{action.emoji}</span>
-            <span>{action.label}</span>
+            {ttsEnabled ? <Volume2 size={16} /> : <VolumeX size={16} />}
           </button>
-        ))}
-      </div>
 
-      {/* Input Area */}
-      <div className="flex items-center gap-2">
+          {/* Micro */}
+          <button
+            className={`ps-icon-action ${isListening ? 'listening' : ''}`}
+            onClick={toggleListening}
+            title={isListening ? "Arrêter l'écoute" : 'Dicter'}
+          >
+            {isListening ? <MicOff size={16} /> : <Mic size={16} />}
+          </button>
 
-        {/* Bouton TTS toggle */}
-        <button
-          onClick={() => {
-            if (ttsEnabled) {
-              window.speechSynthesis?.cancel();
-              setIsSpeaking(false);
-            }
-            setTtsEnabled(!ttsEnabled);
-          }}
-          className={`p-2 rounded-full transition-colors ${
-            ttsEnabled
-              ? 'text-purple-500 bg-purple-50 hover:bg-purple-100'
-              : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
-          }`}
-          title={ttsEnabled ? 'Désactiver la voix' : 'Activer la voix'}
-        >
-          {ttsEnabled
-            ? <Volume2 className={`w-5 h-5 ${isSpeaking ? 'animate-pulse' : ''}`} />
-            : <VolumeX className="w-5 h-5" />
-          }
-        </button>
-
-        {/* Bouton micro (Speech-to-Text) */}
-        <button
-          onClick={toggleListening}
-          className={`p-2 rounded-full transition-colors ${
-            isListening
-              ? 'text-red-500 bg-red-50 animate-pulse'
-              : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
-          }`}
-          title={isListening ? 'Arrêter l\'écoute' : 'Parler'}
-        >
-          {isListening
-            ? <MicOff className="w-5 h-5" />
-            : <Mic    className="w-5 h-5" />
-          }
-        </button>
-
-        {/* Champ texte */}
-        <div className="flex-1 relative">
+          {/* Texte */}
           <input
             type="text"
+            className={`ps-text-input ${isListening ? 'listening' : ''}`}
             value={message}
-            onChange={(e) => setMessage(e.target.value)}
-            onKeyPress={handleKeyPress}
-            placeholder={
-              isListening
-                ? '🎙️ Parlez maintenant...'
-                : 'Posez votre question (patients, scans, risques)...'
-            }
-            className={`w-full px-4 py-2.5 border rounded-full focus:outline-none transition-all ${
-              isListening
-                ? 'border-red-400 ring-2 ring-red-200 bg-red-50'
-                : 'border-gray-300 focus:border-pink-400 focus:ring-2 focus:ring-pink-200'
-            }`}
+            onChange={e => setMessage(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), handleSend())}
+            placeholder={isListening ? '🎙️ Parlez maintenant…' : 'Posez votre question…'}
             disabled={isLoading}
           />
-          {message && !isListening && (
-            <div className="absolute right-3 top-1/2 -translate-y-1/2">
-              <Sparkles className="w-4 h-4 text-pink-400" />
-            </div>
-          )}
+
+          {/* Envoyer */}
+          <button
+            className={`ps-send-btn ${message.trim() && !isLoading ? 'active' : 'inactive'}`}
+            onClick={handleSend}
+            disabled={!message.trim() || isLoading}
+          >
+            <Send size={15} color={message.trim() && !isLoading ? '#fff' : 'rgba(148,163,184,.4)'} />
+          </button>
         </div>
 
-        {/* Bouton envoyer */}
-        <button
-          onClick={handleSend}
-          disabled={!message.trim() || isLoading}
-          className={`p-2.5 rounded-full transition-all ${
-            message.trim() && !isLoading
-              ? 'bg-gradient-to-r from-pink-500 to-purple-600 text-white hover:shadow-lg hover:scale-105'
-              : 'bg-gray-200 text-gray-400 cursor-not-allowed'
-          }`}
-        >
-          <Send className="w-5 h-5" />
-        </button>
-      </div>
-
-      {/* Indicateur TTS actif */}
-      {isSpeaking && (
-        <div className="mt-2 flex items-center gap-2 text-xs text-purple-500">
-          <div className="flex gap-0.5">
-            {[0, 100, 200].map(delay => (
-              <span
-                key={delay}
-                className="w-1 h-3 bg-purple-400 rounded-full animate-bounce"
-                style={{ animationDelay: `${delay}ms` }}
-              />
+        {/* Indicateur TTS */}
+        {isSpeaking && (
+          <div className="ps-tts-indicator">
+            {[0,100,200,100,0].map((h,i) => (
+              <span key={i} className="ps-tts-bar"
+                style={{ height:`${8+h/10}px`, animationDelay:`${i*80}ms` }} />
             ))}
+            <span>Lecture en cours…</span>
           </div>
-          <span>Lecture en cours… cliquez sur 🔊 pour arrêter</span>
-        </div>
-      )}
-    </div>
+        )}
+      </div>
+    </>
   );
 };
 

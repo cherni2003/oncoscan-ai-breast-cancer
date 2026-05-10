@@ -1,133 +1,216 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { MessageCircle, X, Minimize2, Maximize2, Trash2 } from 'lucide-react';
+import { MessageCircle, X, Minimize2, Maximize2, Trash2, Activity } from 'lucide-react';
 import ChatMessage from './ChatMessage.jsx';
 import ChatInput from './ChatInput.jsx';
 import { useChatbot } from '../hooks/useChatbot.js';
 
 const ChatbotWidget = () => {
-  const [isOpen,       setIsOpen]       = useState(false);
-  const [isMinimized,  setIsMinimized]  = useState(false);
+  const [isOpen,      setIsOpen]      = useState(false);
+  const [isMinimized, setIsMinimized] = useState(false);
   const { messages, isLoading, patientId, sendMessage, clearChat, messagesEndRef } = useChatbot();
 
-  // Dernier message du bot (pour TTS automatique)
   const lastBotMessage = useMemo(() => {
     const botMessages = messages.filter(m => m.sender === 'bot');
     return botMessages.length > 0 ? botMessages[botMessages.length - 1] : null;
   }, [messages]);
 
-  // Sauvegarder l'état ouvert/fermé
   useEffect(() => {
-    const saved = localStorage.getItem('chatbotOpen');
+    const saved = localStorage.getItem('pathoscan_chatbot_open');
     if (saved) setIsOpen(JSON.parse(saved));
   }, []);
 
   useEffect(() => {
-    localStorage.setItem('chatbotOpen', JSON.stringify(isOpen));
+    localStorage.setItem('pathoscan_chatbot_open', JSON.stringify(isOpen));
   }, [isOpen]);
 
-  if (!isOpen) {
-    return (
-      <button
-        onClick={() => setIsOpen(true)}
-        className="fixed bottom-6 right-6 w-14 h-14 bg-gradient-to-r from-pink-500 to-purple-600 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-center group z-50 hover:scale-110"
-      >
-        <MessageCircle className="w-6 h-6 text-white" />
-        <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-green-500 rounded-full animate-pulse border-2 border-white" />
-        <div className="absolute inset-0 rounded-full animate-ping bg-pink-400 opacity-20" />
+  /* ── Styles partagés injectés une seule fois ── */
+  const styles = `
+    @keyframes ps-pulse { 0%,100%{opacity:1} 50%{opacity:.5} }
+    @keyframes ps-ping   { 0%{transform:scale(1);opacity:.7} 100%{transform:scale(1.8);opacity:0} }
+    @keyframes ps-bounce { 0%,80%,100%{transform:translateY(0)} 40%{transform:translateY(-6px)} }
+    @keyframes ps-fadein { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:none} }
+
+    .ps-widget-btn {
+      position:fixed; bottom:28px; right:28px; z-index:1000;
+      width:56px; height:56px; border-radius:50%; border:none;
+      background:linear-gradient(135deg,#1a0a10 0%,#7f1d3a 100%);
+      box-shadow:0 8px 32px rgba(225,29,72,.35);
+      cursor:pointer; display:flex; align-items:center; justify-content:center;
+      transition:all .25s cubic-bezier(.34,1.56,.64,1);
+    }
+    .ps-widget-btn:hover { transform:scale(1.12); box-shadow:0 12px 40px rgba(225,29,72,.5); }
+    .ps-badge-online {
+      position:absolute; top:2px; right:2px;
+      width:12px; height:12px; border-radius:50%;
+      background:#22c55e; border:2px solid #fff;
+      animation:ps-pulse 2s infinite;
+    }
+    .ps-ping-ring {
+      position:absolute; inset:0; border-radius:50%;
+      background:rgba(225,29,72,.25);
+      animation:ps-ping 2s cubic-bezier(0,0,.2,1) infinite;
+    }
+
+    .ps-widget {
+      position:fixed; bottom:28px; right:28px; z-index:1000;
+      display:flex; flex-direction:column;
+      border-radius:20px; overflow:hidden;
+      border:1px solid rgba(225,29,72,.18);
+      box-shadow:0 24px 80px rgba(0,0,0,.5), 0 0 0 1px rgba(255,255,255,.04);
+      background:rgba(15,8,12,.94);
+      backdrop-filter:blur(24px);
+      animation:ps-fadein .25s both;
+      font-family:var(--font-display,'Segoe UI',sans-serif);
+      transition:width .3s,height .3s;
+    }
+    .ps-widget.open { width:480px; height:680px; }
+    .ps-widget.mini { width:320px; height:58px; }
+
+    .ps-header {
+      background:linear-gradient(135deg,#1a0a10 0%,#3d0b1e 100%);
+      padding:13px 16px;
+      display:flex; align-items:center; justify-content:space-between;
+      border-bottom:1px solid rgba(225,29,72,.15);
+      flex-shrink:0;
+    }
+    .ps-header-left { display:flex; align-items:center; gap:10px; }
+    .ps-logo {
+      width:34px; height:34px; border-radius:10px; flex-shrink:0;
+      background:rgba(225,29,72,.12); border:1px solid rgba(225,29,72,.28);
+      display:flex; align-items:center; justify-content:center;
+    }
+    .ps-title  { font-weight:700; font-size:13.5px; color:#f1f5f9; letter-spacing:-.2px; }
+    .ps-sub    { font-size:10.5px; color:rgba(251,113,133,.65); margin-top:1px; }
+    .ps-pid    {
+      display:inline-flex; align-items:center; gap:4px;
+      padding:3px 9px; border-radius:99px;
+      background:rgba(225,29,72,.1); border:1px solid rgba(225,29,72,.22);
+      font-size:10px; font-weight:600; color:#fb7185; font-family:monospace;
+    }
+    .ps-ibtn {
+      background:none; border:none; cursor:pointer;
+      width:30px; height:30px; border-radius:8px;
+      display:flex; align-items:center; justify-content:center;
+      color:rgba(251,113,133,.55); transition:all .15s;
+    }
+    .ps-ibtn:hover { background:rgba(225,29,72,.1); color:#fb7185; }
+
+    .ps-statusbar {
+      padding:7px 14px;
+      background:rgba(255,255,255,.018);
+      border-bottom:1px solid rgba(255,255,255,.05);
+      display:flex; align-items:center; justify-content:space-between;
+      font-size:11px; color:rgba(148,163,184,.55); flex-shrink:0;
+    }
+    .ps-dot { width:7px; height:7px; border-radius:50%; background:#22c55e; animation:ps-pulse 2s infinite; }
+
+    .ps-messages {
+      flex:1; overflow-y:auto; padding:14px 12px;
+      display:flex; flex-direction:column;
+    }
+    .ps-messages::-webkit-scrollbar { width:3px; }
+    .ps-messages::-webkit-scrollbar-thumb { background:rgba(225,29,72,.18); border-radius:2px; }
+
+    .ps-typing-bubble {
+      display:inline-flex; gap:4px; align-items:center;
+      padding:10px 14px; border-radius:16px;
+      background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.07);
+      margin:6px 0;
+    }
+    .ps-tdot {
+      width:7px; height:7px; border-radius:50%;
+      background:#fb7185; animation:ps-bounce 1.2s infinite;
+    }
+  `;
+
+  /* ── Bouton flottant ── */
+  if (!isOpen) return (
+    <>
+      <style>{styles}</style>
+      <button className="ps-widget-btn" onClick={() => setIsOpen(true)}>
+        <MessageCircle size={24} color="#fff" />
+        <span className="ps-badge-online" />
+        <span className="ps-ping-ring" />
       </button>
-    );
-  }
+    </>
+  );
 
+  /* ── Widget ouvert ── */
   return (
-    <div
-      className={`fixed bottom-6 right-6 bg-white rounded-2xl shadow-2xl flex flex-col transition-all duration-300 z-50 border border-gray-100 ${
-        isMinimized ? 'w-80 h-14' : 'w-[500px] h-[700px]'
-      }`}
-    >
-      {/* Header */}
-      <div
-        className="bg-gradient-to-r from-pink-500 to-purple-600 rounded-t-2xl p-4 text-white flex justify-between items-center cursor-pointer"
-        onClick={() => !isMinimized && setIsMinimized(true)}
-      >
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center">
-            <MessageCircle className="w-4 h-4" />
-          </div>
-          <div>
-            <h3 className="font-semibold">MammoScan AI Assistant</h3>
-            {patientId && (
-              <p className="text-xs text-pink-100">
-                Patient actif : <span className="font-mono">{patientId}</span>
-              </p>
-            )}
-          </div>
-        </div>
-        <div className="flex gap-2">
-          <button
-            onClick={(e) => { e.stopPropagation(); clearChat(); }}
-            className="hover:bg-white/20 rounded-lg p-1.5 transition-colors"
-            title="Effacer la conversation"
-          >
-            <Trash2 className="w-4 h-4" />
-          </button>
-          <button
-            onClick={(e) => { e.stopPropagation(); setIsMinimized(!isMinimized); }}
-            className="hover:bg-white/20 rounded-lg p-1.5 transition-colors"
-          >
-            {isMinimized ? <Maximize2 className="w-4 h-4" /> : <Minimize2 className="w-4 h-4" />}
-          </button>
-          <button
-            onClick={(e) => { e.stopPropagation(); setIsOpen(false); }}
-            className="hover:bg-white/20 rounded-lg p-1.5 transition-colors"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-      </div>
+    <>
+      <style>{styles}</style>
+      <div className={`ps-widget ${isMinimized ? 'mini' : 'open'}`}>
 
-      {!isMinimized && (
-        <>
-          {/* Barre de statut */}
-          <div className="px-4 py-2 bg-gray-50 border-b border-gray-100 flex items-center justify-between text-xs">
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-              <span className="text-gray-600">IA en ligne</span>
+        {/* Header */}
+        <div
+          className="ps-header"
+          style={{ cursor: isMinimized ? 'pointer' : 'default' }}
+          onClick={() => isMinimized && setIsMinimized(false)}
+        >
+          <div className="ps-header-left">
+            <div className="ps-logo">
+              <Activity size={16} color="#fb7185" />
             </div>
-            <div className="text-gray-400">{messages.length} messages</div>
+            <div>
+              <div className="ps-title">PathoScan Assistant</div>
+              {!isMinimized && (
+                patientId
+                  ? <div className="ps-pid">● {patientId}</div>
+                  : <div className="ps-sub">Diagnostic IA · Tunisie 2025</div>
+              )}
+            </div>
           </div>
+          <div style={{ display:'flex', gap:4 }}>
+            <button className="ps-ibtn" onClick={e => { e.stopPropagation(); clearChat(); }} title="Effacer">
+              <Trash2 size={14} />
+            </button>
+            <button className="ps-ibtn" onClick={e => { e.stopPropagation(); setIsMinimized(!isMinimized); }}>
+              {isMinimized ? <Maximize2 size={14} /> : <Minimize2 size={14} />}
+            </button>
+            <button className="ps-ibtn" onClick={e => { e.stopPropagation(); setIsOpen(false); }}>
+              <X size={14} />
+            </button>
+          </div>
+        </div>
 
-          {/* Messages */}
-          <div className="flex-1 overflow-y-auto p-4 bg-gray-50">
-            {messages.map((message) => (
-              <ChatMessage key={message.id} message={message} />
-            ))}
-            {isLoading && (
-              <div className="flex justify-start mb-4">
-                <div className="bg-white rounded-2xl px-4 py-3 shadow-sm">
-                  <div className="flex gap-1.5">
-                    {[0, 150, 300].map((delay) => (
-                      <span
-                        key={delay}
-                        className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
-                        style={{ animationDelay: `${delay}ms` }}
-                      />
+        {!isMinimized && (
+          <>
+            {/* Status bar */}
+            <div className="ps-statusbar">
+              <div style={{ display:'flex', alignItems:'center', gap:6 }}>
+                <span className="ps-dot" />
+                <span>IA en ligne</span>
+              </div>
+              <span>{messages.length} messages</span>
+            </div>
+
+            {/* Messages */}
+            <div className="ps-messages">
+              {messages.map(msg => (
+                <ChatMessage key={msg.id} message={msg} />
+              ))}
+              {isLoading && (
+                <div style={{ display:'flex', marginTop:4 }}>
+                  <div className="ps-typing-bubble">
+                    {[0,150,300].map(d => (
+                      <span key={d} className="ps-tdot" style={{ animationDelay:`${d}ms` }} />
                     ))}
                   </div>
                 </div>
-              </div>
-            )}
-            <div ref={messagesEndRef} />
-          </div>
+              )}
+              <div ref={messagesEndRef} />
+            </div>
 
-          {/* Input — reçoit le dernier message bot pour TTS */}
-          <ChatInput
-            onSendMessage={sendMessage}
-            isLoading={isLoading}
-            lastBotMessage={lastBotMessage}
-          />
-        </>
-      )}
-    </div>
+            {/* Input */}
+            <ChatInput
+              onSendMessage={sendMessage}
+              isLoading={isLoading}
+              lastBotMessage={lastBotMessage}
+            />
+          </>
+        )}
+      </div>
+    </>
   );
 };
 

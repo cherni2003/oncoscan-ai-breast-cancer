@@ -1,0 +1,132 @@
+{
+  "intents": [
+    {
+      "tag": "greeting",
+      "patterns": [
+        "Bonjour", "Salut", "Coucou", "Bonsoir", "Hello", "Hey",
+        "Bonjour MammoScan", "Bonjour assistant", "Bonjour docteur",
+        "Comment ça va", "Vous êtes disponible", "Allô"
+      ],
+      "responses": [
+        "Bonjour ! Je suis l'assistant IA MammoScan. Comment puis-je vous aider ?",
+        "Bonjour ! Je suis là pour vous aider avec les données patients, les scans et l'évaluation des risques.",
+        "Bienvenue sur MammoScan IA. Posez-moi vos questions sur les patients, les mammographies ou le tableau de bord."
+      ]
+    },
+    {
+      "tag": "goodbye",
+      "patterns": [
+        "Au revoir", "Bonne journée", "À bientôt", "Bye", "Ciao",
+        "Merci à bientôt", "Je termine", "C'est tout", "Fermer",
+        "À plus tard", "Salut", "Bonne soirée", "Bonne nuit"
+      ],
+      "responses": [
+        "Au revoir ! Prenez soin de vous.",
+        "À bientôt ! N'hésitez pas à revenir si vous avez des questions.",
+        "Bonne journée ! Restez en bonne santé."
+      ]
+    },
+    {
+      "tag": "thanks",
+      "patterns": [
+        "Merci", "Merci beaucoup", "C'est très utile", "Parfait merci",
+        "Super merci", "Génial merci", "C'est exactement ce qu'il me fallait",
+        "Bien reçu", "Ok merci", "Nickel"
+      ],
+      "responses": [
+        "Avec plaisir !",
+        "Je suis là pour vous aider !",
+        "C'est normal, n'hésitez pas.",
+        "De rien ! Y a-t-il autre chose que je puisse faire pour vous ?"
+      ]
+    },
+    {
+      "tag": "dashboard",
+      "patterns": [
+        "Tableau de bord", "Statistiques", "Montre-moi les stats",
+        "Vue d'ensemble", "KPI", "Analytics", "Données globales",
+        "Combien de patients", "Résumé du système", "Rapport global",
+        "Afficher le dashboard", "Données du système", "Bilan général",
+        "Montre le dashboard", "Statistiques globales", "Aperçu général"
+      ],
+      "responses": [
+        "Chargement des statistiques du tableau de bord en cours..."
+      ]
+    },
+    {
+      "tag": "patient_info",
+      "patterns": [
+        "Informations patient", "Fiche patient", "Profil patient",
+        "Données du patient", "Qui est ce patient", "Détails patient",
+        "Montre le patient", "Infos sur le patient", "Dossier patient",
+        "Récupère les infos patient", "Rechercher patient",
+        "Afficher dossier", "Patient P001", "Patient P002", "Patient P003"
+      ],
+      "responses": [
+        "Récupération du dossier patient en cours..."
+      ]
+    },
+    {
+      "tag": "scan_result",
+      "patterns": [
+        "Résultat de scan", "Dernier scan", "Résultat mammographie",
+        "Mammogramme", "Résultat imagerie", "Montre le scan",
+        "Quel est le résultat du scan", "Classification BI-RADS",
+        "Rapport d'imagerie", "Compte-rendu radiologique",
+        "Analyse mammographique", "Résultat radio", "Scan du patient"
+      ],
+      "responses": [
+        "Récupération des derniers résultats d'imagerie..."
+      ]
+    },
+    {
+      "tag": "risk",
+      "patterns": [
+        "Évaluation du risque", "Score de risque", "Calcule le risque",
+        "Le patient est-il à risque", "Analyse de risque", "Risque de cancer",
+        "Prédiction risque", "Niveau de risque", "Indice de risque",
+        "Évaluer le risque", "Risque mammaire", "Estimation du risque",
+        "Calcul risque", "Risque patient"
+      ],
+      "responses": [
+        "Calcul du score de risque IA en cours..."
+      ]
+    },
+    {
+      "tag": "aide",
+      "patterns": [
+        "Aide", "Help", "Comment utiliser", "Que peux-tu faire",
+        "Quelles sont tes fonctions", "Comment ça marche", "À quoi tu sers",
+        "Fonctionnalités disponibles", "Menu d'aide", "Guide d'utilisation",
+        "Explique-moi", "Je ne sais pas quoi demander", "Que puis-je faire"
+      ],
+      "responses": [
+        "Je peux vous aider avec :\n• 📊 Tableau de bord — statistiques globales du système\n• 👤 Dossier patient — ex: 'infos patient P001'\n• 🔬 Résultat scan — ex: 'résultat scan P002'\n• ⚠️ Risque IA — ex: 'calcule le risque P001'",
+        "Voici ce que je sais faire :\n• Afficher les statistiques du tableau de bord\n• Récupérer les informations d'un patient (ex: P001)\n• Consulter les résultats de mammographie\n• Évaluer le risque IA d'un patient"
+      ]
+    },
+    {
+      "tag": "birads",
+      "patterns": [
+        "Qu'est-ce que BI-RADS", "Expliquer BI-RADS", "Classification BI-RADS",
+        "BI-RADS catégorie 5", "BI-RADS catégorie 1", "Que signifie BI-RADS",
+        "Échelle BI-RADS", "Catégories BI-RADS"
+      ],
+      "responses": [
+        "Le système BI-RADS classe les résultats mammographiques de 0 à 6 :\n• Catégorie 1 : Négatif — examen normal\n• Catégorie 2 : Découverte bénigne — rassurant\n• Catégorie 3 : Probablement bénin — surveillance\n• Catégorie 4 : Suspicion — biopsie recommandée\n• Catégorie 5 : Hautement suspect — intervention urgente\n• Catégorie 6 : Malignité confirmée"
+      ]
+    },
+    {
+      "tag": "cancer_info",
+      "patterns": [
+        "Cancer du sein", "Qu'est-ce que le cancer du sein", "Facteurs de risque",
+        "Prévention cancer", "Dépistage", "Mammographie préventive",
+        "Symptômes cancer sein", "Traitement cancer", "Pronostic cancer sein"
+      ],
+      "responses": [
+        "Le cancer du sein est le cancer le plus fréquent chez la femme. Les facteurs de risque incluent : l'âge, les antécédents familiaux, et certains modes de vie. Un dépistage régulier par mammographie est recommandé à partir de 50 ans. Consultez votre médecin pour un suivi personnalisé.",
+        "Le dépistage précoce du cancer du sein améliore considérablement le pronostic. La mammographie est l'examen de référence. Pour toute préoccupation, consultez un spécialiste."
+      ]
+    }
+  ]
+}
